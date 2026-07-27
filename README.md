@@ -1,4 +1,4 @@
-# 🐟 小鲸鱼桌宠
+# 小鲸鱼桌宠
 
 > 一只会说话、懂农历、能穿透桌面的智能小鲸鱼，陪你摸鱼、刷课、发呆。
 
@@ -17,7 +17,7 @@
 
 ---
 
-## 🛠️ 技术栈
+## 技术栈
 
 - **前端**：HTML + CSS + JavaScript
 - **桌面容器**：Electron
@@ -36,7 +36,7 @@
 
 ### 方法二：从源码运行（适合想自己改代码）
 ```bash
-git clone https://github.com/你的用户名/whale-pet.git
+git clone https://github.com/AlsyVesperia/whale-pet.git
 cd whale-pet
 npm install
 npm start
