@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🐟 小鲸鱼桌宠</title>
+    <script src="js/lunar.js"></script>
+    <style>
+        * { user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: transparent;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        #pet-container {
+            position: fixed;
+            left: 100px;
+            bottom: 80px;
+            z-index: 999999;
+            cursor: grab;
+            filter: drop-shadow(2px 4px 8px rgba(0,0,0,0.2));
+        }
+        #pet-container:active { cursor: grabbing; }
+        #pet-img {
+            display: block;
+            width: auto;
+            height: 120px;
+            pointer-events: none;
+        }
+        .bubble {
+            position: fixed;
+            background: white;
+            border-radius: 24px;
+            padding: 8px 16px;
+            max-width: 220px;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #1e293b;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: 1px solid #e2e8f0;
+            z-index: 10000000;
+            word-wrap: break-word;
+            pointer-events: none;
+            font-weight: 500;
+        }
+        .bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 20px;
+            border-width: 8px 8px 0 0;
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+            filter: drop-shadow(1px 1px 0 #e2e8f0);
+        }
+        .bubble.bubble-below::after {
+            bottom: auto;
+            top: -8px;
+            left: 20px;
+            border-width: 0 8px 8px 8px;
+            border-color: transparent transparent white transparent;
+            filter: drop-shadow(0 -1px 0 #e2e8f0);
+        }
+        .chat-panel {
+            position: fixed;
+            width: 320px;
+            max-height: 400px;
+            background: rgba(30, 30, 40, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000002;
+            font-size: 13px;
+        }
+        .chat-header {
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 20px 20px 0 0;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+        }
+        .chat-header button {
+            background: none;
+            border: none;
+            color: #ffaa88;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 6px;
+        }
+        .chat-messages {
+            padding: 10px;
+            overflow-y: auto;
+            max-height: 280px;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 90%;
+        }
+        .message.user { align-items: flex-end; }
+        .message.assistant { align-items: flex-start; }
+        .message-bubble {
+            padding: 6px 12px;
+            border-radius: 18px;
+            background: rgba(0,0,0,0.6);
+            word-wrap: break-word;
+            white-space: normal;
+            font-size: 13px;
+        }
+        .message.user .message-bubble { background: #1e88e5; color: white; }
+        .message.assistant .message-bubble { background: #2c2c3a; color: #f0f0f0; }
+        .message-time {
+            font-size: 10px;
+            color: #aaa;
+            margin-top: 2px;
+            margin-left: 8px;
+            margin-right: 8px;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 8px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.4);
+            border-radius: 0 0 20px 20px;
+        }
+        .chat-input-area input {
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            outline: none;
+        }
+        .chat-input-area button {
+            background: #ffaa44;
+            border: none;
+            margin-left: 8px;
+            border-radius: 20px;
+            padding: 6px 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .settings-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 8px 16px;
+            display: flex;
+            gap: 12px;
+            z-index: 1000001;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 13px;
+            color: white;
+        }
+        .settings-panel input, .settings-panel button {
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 24px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .settings-panel input { width: 180px; cursor: text; }
+        .reminder-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 6px 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 1000001;
+            font-size: 12px;
+        }
+        .reminder-panel input, .reminder-panel button {
+            background: #1e293b;
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div id="pet-container">
+    <img id="pet-img" src="images/idle.png" alt="小鲸鱼">
+</div>
+<div class="settings-panel">
+    <input type="password" id="apiKeyInput" placeholder="DeepSeek API Key (可选)" size="24">
+    <button id="saveApiBtn">💾 保存</button>
+    <button id="switchFormBtn">🐟 形态 (右键)</button>
+</div>
+<div class="reminder-panel">
+    <input type="number" id="reminderSeconds" placeholder="秒数" value="60" style="width:70px">
+    <input type="text" id="reminderText" placeholder="提醒内容" value="小鲸鱼想你啦 🐟">
+    <button id="setReminderBtn">⏰ 提醒</button>
+</div>
+
+<script>
+    // ---------- 图片资源 ----------
+    const IMAGES = {
+        human: {
+            idle: 'images/idle.png',
+            blink: 'images/blink.gif',
+            talk: 'images/talk.png',
+            walk_left: 'images/walk_left.gif',
+            walk_right: 'images/walk_right.gif',
+            drag: 'images/drag.png'
+        },
+        whale: {
+            idle: 'images/whale_idle.gif',
+            walk_left: 'images/whale_walk_left.gif',
+            walk_right: 'images/whale_walk_right.gif',
+            drag: 'images/drag.png'
+        }
+    };
+
+    let currentForm = 'human';
+    let currentAction = 'idle';
+    let walkInterval = null;
+    let isDragging = false;
+    let container = document.getElementById('pet-container');
+    let petImg = document.getElementById('pet-img');
+    let posX = 100, posY = 80;
+    const screenPadding = 20;
+
+    let apiKey = localStorage.getItem('deepseek_api_key') || '';
+    const apiUrl = 'https://api.deepseek.com/chat/completions';
+    let reminderTimeout = null;
+
+    let dragOccurred = false;
+    let dragTimer = null;
+    let currentBubble = null;
+
+    let chatPanel = null;
+    let messagesContainer = null;
+    let chatInput = null;
+    let isChatOpen = false;
+    let conversationHistory = [];
+
+    // 本地降级句子库
+    const localPhrases = [
+        "嘿嘿～在呢！🐟",
+        "专心学习哦，我在这里陪着你！",
+        "要喝水了！……啊，我好像不用喝呢",
+        "呜哦，别戳啦！",
+        "再戳喷水！",
+        "嘘！我在摸鱼哦",
+        "电量不足，求贴贴 ❤️",
+        "滴滴！人工智障上线！",
+        "一直戳的话，AI也会害羞的",
+        "你知道吗？虎鲸会咬鼠标的！",
+        "蓝蓝尾巴，要扫你咯",
+        "呼呼……",
+        "再戳就咬你！"
+    ];
+
+    // 获取当前时间字符串（精确到分钟）
+    function getCurrentTimeString() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const solarStr = `${year}-${month}-${day} ${hour}:${minute}`;
+
+    let lunarStr = '';
+    if (typeof Lunar !== 'undefined') {
+        try {
+            const lunar = Lunar.fromDate(now);
+            lunarStr = `，农历${lunar.getMonthInChinese()}${lunar.getDayInChinese()}`;
+            const festival = lunar.getFestival();
+            if (festival) lunarStr += `（${festival}）`;
+        } catch(e) {}
+    }
+    return `${solarStr}${lunarStr}`;
+}
+
+    // 彻底清除 <think> 标签及其内容（针对 v4-flash 增强）
+    function stripThinkTags(text) {
+        if (!text) return '';
+        // 移除 <think> ... </think> 及其内部所有内容（包括换行）
+        let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+        // 移除可能单独出现的 <think> 或 </think>
+        cleaned = cleaned.replace(/<\/?think>/gi, '');
+        // 移除常见的深度思考标记变体
+        cleaned = cleaned.replace(/【思考】[\s\S]*?【\/思考】/gi, '');
+        return cleaned.trim();
+    }
+
+    // ---------- UI 元素绑定 ----------
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const saveApiBtn = document.getElementById('saveApiBtn');
+    const switchFormBtn = document.getElementById('switchFormBtn');
+    if (apiKey) apiKeyInput.value = apiKey;
+
+    saveApiBtn.addEventListener('click', () => {
+        const newKey = apiKeyInput.value.trim();
+        if (newKey) {
+            apiKey = newKey;
+            localStorage.setItem('deepseek_api_key', newKey);
+            showFloatingMessage('✅ API Key 已保存', 2000);
+        } else {
+            apiKey = '';
+            localStorage.removeItem('deepseek_api_key');
+            showFloatingMessage('🔓 已切换到本地模式', 2000);
+        }
+    });
+
+    // 形态切换
+    function switchForm() {
+        currentForm = currentForm === 'human' ? 'whale' : 'human';
+        refreshImageByAction();
+        showFloatingMessage(`🐟 已切换为 ${currentForm === 'human' ? '人形' : '鲸鱼形态'}`, 1500);
+    }
+
+    function refreshImageByAction() {
+        let src = '';
+        const set = currentForm === 'human' ? IMAGES.human : IMAGES.whale;
+        if (currentAction === 'idle') src = set.idle;
+        else if (currentAction === 'walk_left') src = set.walk_left;
+        else if (currentAction === 'walk_right') src = set.walk_right;
+        else if (currentAction === 'drag') src = set.drag;
+        else if (currentAction === 'talk') src = set.talk || set.idle;
+        else if (currentAction === 'blink') src = set.blink || set.idle;
+        if (src) petImg.src = src;
+    }
+
+    function tempAction(action, durationMs = 500) {
+        if (isDragging) return;
+        currentAction = action;
+        refreshImageByAction();
+        setTimeout(() => {
+            if (!isDragging && currentAction === action) {
+                currentAction = 'idle';
+                refreshImageByAction();
+                if (walkInterval) clearInterval(walkInterval);
+                walkInterval = null;
+                startRandomWalk();
+            }
+        }, durationMs);
+    }
+
+    // 短暂气泡消息（无历史记录）
+    function showFloatingMessage(msg, durationMs = 4000) {
+        if (currentBubble) currentBubble.remove();
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerText = msg;
+    const rect = container.getBoundingClientRect();
+    if (rect.top < 120) {
+        // 小鲸鱼太靠近屏幕顶部，气泡显示在它下方，箭头朝上
+        bubble.classList.add('bubble-below');
+        bubble.style.left = (rect.left + 20) + 'px';
+        bubble.style.top = (rect.bottom + 10) + 'px';
+        bubble.style.bottom = 'auto';
+    } else {
+        // 正常情况，气泡显示在小鲸鱼上方，箭头朝下
+        bubble.classList.remove('bubble-below');
+        bubble.style.left = (rect.left + 20) + 'px';
+        bubble.style.bottom = (window.innerHeight - rect.top + 20) + 'px';
+    }
+        document.body.appendChild(bubble);
+        currentBubble = bubble;
+        setTimeout(() => {
+            if (currentBubble === bubble) {
+                bubble.remove();
+                if (currentBubble === bubble) currentBubble = null;
+            }
+        }, durationMs);
+    }
+
+    // ---------- 核心：单击说话（API优先，带时间）----------
+    async function speakDirectly() {
+        if (dragOccurred) return;
+if (walkInterval) clearInterval(walkInterval);
+  currentAction = 'idle';
+  refreshImageByAction();
+
+        if (!apiKey) {
+            const fallbackMsg = localPhrases[Math.floor(Math.random() * localPhrases.length)];
+            conversationHistory.push({ role: 'user', content: '（用户单击）', timestamp: Date.now() });
+            conversationHistory.push({ role: 'assistant', content: fallbackMsg, timestamp: Date.now() });
+            if (conversationHistory.length > 30) conversationHistory = conversationHistory.slice(-30);
+            showFloatingMessage(fallbackMsg, 4000);
+            tempAction('talk', 800);
+            return;
+        }
+
+        showFloatingMessage('🐟 小鲸鱼思考中...', 0);
+        try {
+            const systemPrompt = `你是DeepSeek，一个ai助手，也是住在我桌面上的小鲸鱼。你的性格活泼可爱，回复要自然、简短但有趣（1-3句话，不超过80字）。不要使用任何XML标签如<think>，不要解释，直接回答用户。你可以根据一天中的时段调整语气（例如晚上说“晚安”），但除非用户明确问“现在几点”，否则绝对不要主动说出具体时间（例如十点零一分等）。如果今天恰好是某个节日（如儿童节、春节、国庆等），你可以在回复中自然地说一句简短的节日祝福，但特别注意不要每句话都提。当用户没有主动问时间时，你不需要刻意回避时间话题，只需自然地继续聊天。如果提到时间，用‘晚上’、‘深夜’这类模糊词就好，不用具体数字。`;
+            
+            const recentHistory = conversationHistory.filter(msg => (Date.now() - (msg.timestamp || 0)) <= 5 * 60 * 1000);
+            const nowTime = getCurrentTimeString();
+            const timeUserMsg = { role: 'user', content: `（当前时间：${nowTime}）` };
+            const messagesForAPI = [
+                { role: 'system', content: systemPrompt },
+                timeUserMsg,
+                ...recentHistory.map(m => ({ role: m.role, content: m.content })),
+                { role: 'user', content: '随便说句话吧～或者告诉我现在几点？' }
+            ];
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model: 'deepseek-v4-flash',   // 改回 v4-flash
+                    messages: messagesForAPI,
+                    max_tokens: 300,
+                    temperature: 0.7
+                })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            let reply = data.choices[0].message.content.trim();
+            reply = stripThinkTags(reply);
+            if (!reply) {
+                reply = localPhrases[Math.floor(Math.random() * localPhrases.length)];
+            } else if (reply.length > 100) {
+                reply = reply.substring(0, 100);
+            }
+
+            conversationHistory.push({ role: 'user', content: '（用户单击）', timestamp: Date.now() });
+            conversationHistory.push({ role: 'assistant', content: reply, timestamp: Date.now() });
+            if (conversationHistory.length > 30) conversationHistory = conversationHistory.slice(-30);
+            if (currentBubble) currentBubble.remove();
+            showFloatingMessage(reply, 5000);
+            tempAction('talk', 1000);
+        } catch (err) {
+            console.warn("API失败，使用本地句子", err);
+            if (currentBubble) currentBubble.remove();
+            const fallbackMsg = localPhrases[Math.floor(Math.random() * localPhrases.length)];
+            conversationHistory.push({ role: 'user', content: '（用户单击）', timestamp: Date.now() });
+            conversationHistory.push({ role: 'assistant', content: fallbackMsg, timestamp: Date.now() });
+            if (conversationHistory.length > 30) conversationHistory = conversationHistory.slice(-30);
+            showFloatingMessage(fallbackMsg, 4000);
+            tempAction('talk', 800);
+        }
+    }
+
+    // ---------- 聊天面板（显示在鲸鱼旁边）----------
+    function positionPanelNearPet(panel) {
+        const petRect = container.getBoundingClientRect();
+        const panelWidth = 320;
+        let left = petRect.left + 40;
+        let top = petRect.top - 20;
+        if (top + 400 > window.innerHeight) top = petRect.bottom - 400;
+        if (left + panelWidth > window.innerWidth) left = petRect.right - panelWidth - 20;
+        if (left < 0) left = 10;
+        if (top < 0) top = 10;
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+        panel.style.bottom = 'auto';
+    }
+
+    function createChatPanel() {
+        if (chatPanel) return;
+        const panel = document.createElement('div');
+        panel.className = 'chat-panel';
+        panel.innerHTML = `
+            <div class="chat-header">
+                <span>🐟 与小鲸鱼聊天</span>
+                <button id="closeChatBtn">✕</button>
+            </div>
+            <div class="chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="说点什么..." autocomplete="off">
+                <button id="sendChatBtn">发送</button>
+            </div>
+        `;
+        document.body.appendChild(panel);
+        chatPanel = panel;
+        messagesContainer = panel.querySelector('.chat-messages');
+        chatInput = panel.querySelector('#chatInput');
+        const closeBtn = panel.querySelector('#closeChatBtn');
+        const sendBtn = panel.querySelector('#sendChatBtn');
+
+        closeBtn.addEventListener('click', () => closeChatPanel());
+        sendBtn.addEventListener('click', () => sendUserMessage());
+        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendUserMessage(); });
+
+        // 拖动面板
+        let dragging = false;
+        let dragOffsetX, dragOffsetY;
+        const header = panel.querySelector('.chat-header');
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            dragging = true;
+            dragOffsetX = e.clientX - panel.offsetLeft;
+            dragOffsetY = e.clientY - panel.offsetTop;
+            panel.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            let left = e.clientX - dragOffsetX;
+            let top = e.clientY - dragOffsetY;
+            left = Math.min(window.innerWidth - panel.offsetWidth, Math.max(0, left));
+            top = Math.min(window.innerHeight - panel.offsetHeight, Math.max(0, top));
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+            panel.style.bottom = 'auto';
+        });
+        window.addEventListener('mouseup', () => { dragging = false; if (panel) panel.style.cursor = 'default'; });
+
+        positionPanelNearPet(panel);
+    }
+
+    function closeChatPanel() {
+        if (chatPanel) {
+            chatPanel.remove();
+            chatPanel = null;
+            isChatOpen = false;
+        }
+    }
+
+    function openChatPanel() {
+        if (isChatOpen) { closeChatPanel(); return; }
+        createChatPanel();
+        isChatOpen = true;
+        refreshChatMessages();
+        chatInput.focus();
+    }
+
+    function refreshChatMessages() {
+        if (!messagesContainer) return;
+        messagesContainer.innerHTML = '';
+        const now = Date.now();
+        const recent = conversationHistory.filter(msg => (now - (msg.timestamp || 0)) <= 5 * 60 * 1000);
+        if (recent.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'message assistant';
+            empty.innerHTML = `<div class="message-bubble">🐟 嘿，我是小鲸鱼～</div>`;
+            messagesContainer.appendChild(empty);
+        } else {
+            recent.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${msg.role}`;
+                const time = new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                div.innerHTML = `<div class="message-bubble">${escapeHtml(msg.content)}</div><div class="message-time">${time}</div>`;
+                messagesContainer.appendChild(div);
+            });
+        }
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // 聊天发送消息（带时间感知）
+    async function sendUserMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        conversationHistory.push({ role: 'user', content: text, timestamp: Date.now() });
+        chatInput.value = '';
+        refreshChatMessages();
+
+        const tempId = Date.now();
+        const tempDiv = document.createElement('div');
+        tempDiv.className = 'message assistant';
+        tempDiv.id = `temp-${tempId}`;
+        tempDiv.innerHTML = `<div class="message-bubble">🐟 思考中...</div>`;
+        messagesContainer.appendChild(tempDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        let reply = '';
+        if (!apiKey) {
+            reply = localPhrases[Math.floor(Math.random() * localPhrases.length)];
+        } else {
+            try {
+            const systemPrompt = `你是DeepSeek，一个ai助手，也是住在我桌面上的小鲸鱼。你的性格活泼可爱，回复要自然、简短但有趣（1-3句话，不超过80字）。不要使用任何XML标签如<think>，不要解释，直接回答用户。你可以根据一天中的时段调整语气（例如晚上说“晚安”），但除非用户明确问“现在几点”，否则绝对不要主动说出具体时间（例如十点零一分等）。如果今天恰好是某个节日（如儿童节、春节、国庆等），你可以在回复中自然地说一句简短的节日祝福，但特别注意不要每句话都提。当用户没有主动问时间时，你不需要刻意回避时间话题，只需自然地继续聊天。如果提到时间，用‘晚上’、‘深夜’这类模糊词就好，不用具体数字。`;
+                // ========= 在这里插入节日检查逻辑 =========
+                const todayKey = new Date().toLocaleDateString('zh-CN');
+                const lastFestivalGreeting = localStorage.getItem('lastFestivalGreeting');
+                let festivalMessage = null;
+                if (lastFestivalGreeting !== todayKey) {
+                    // 检查今天是否有节日（需要 Lunar 库可用）
+                    let festival = '';
+                    if (typeof Lunar !== 'undefined') {
+                        try {
+                            const lunar = Lunar.fromDate(new Date());
+                            festival = lunar.getFestival() || '';
+                        } catch(e) {}
+                    }
+                    if (festival) {
+                        festivalMessage = { role: 'user', content: `对了，今天是${festival}，你可以对我说一句简短的节日祝福，但不要每句话都提。` };
+                        localStorage.setItem('lastFestivalGreeting', todayKey);
+                    }
+                }
+                const recentHistory = conversationHistory.filter(m => (Date.now() - (m.timestamp || 0)) <= 5*60*1000);
+                const nowTime = getCurrentTimeString();
+                const timeUserMsg = { role: 'user', content: `（当前时间：${nowTime}）` };
+                const messagesForAPI = [
+                    { role: 'system', content: systemPrompt },
+                    timeUserMsg,
+                    ...recentHistory.map(m => ({ role: m.role, content: m.content }))
+                ];
+                const resp = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: 'deepseek-v4-flash',   // 改回 v4-flash
+                        messages: messagesForAPI,
+                        max_tokens: 300,
+                        temperature: 0.7
+                    })
+                });
+                if (!resp.ok) throw new Error();
+                const data = await resp.json();
+                let rawReply = data.choices[0].message.content.trim();
+                rawReply = stripThinkTags(rawReply);
+                if (!rawReply) {
+                    reply = localPhrases[Math.floor(Math.random() * localPhrases.length)];
+                } else {
+                    reply = rawReply.length > 100 ? rawReply.substring(0,100) : rawReply;
+                }
+            } catch (err) {
+                console.warn("API失败，使用本地句子", err);
+                reply = localPhrases[Math.floor(Math.random() * localPhrases.length)];
+            }
+        }
+
+        const tempElem = document.getElementById(`temp-${tempId}`);
+        if (tempElem) tempElem.remove();
+
+        conversationHistory.push({ role: 'assistant', content: reply, timestamp: Date.now() });
+        refreshChatMessages();
+        tempAction('talk', 800);
+    }
+
+    // ---------- 边缘检测、走动、拖拽 ----------
+    let lastEdgeTriggerTime = 0;
+    let lastDragEndTime = 0;
+    function checkEdgeAndSpeak() {
+        const now = Date.now();
+        if (now - lastEdgeTriggerTime < 3000) return;
+        const rect = container.getBoundingClientRect();
+        let isNearEdge = false;
+        let edgeMsg = '';
+        if (rect.left < 50) {
+            isNearEdge = true;
+            edgeMsg = '🐟 要掉下去了！快拉我一把～';
+        } else if (rect.left + petImg.offsetWidth > window.innerWidth - 50) {
+            isNearEdge = true;
+            edgeMsg = '🐟 右边是悬崖！危险危险～';
+        } else if (rect.top < 50) {
+            isNearEdge = true;
+            edgeMsg = '🐟 上面太高啦，我恐高！';
+        } else if (rect.top + petImg.offsetHeight > window.innerHeight - 50) {
+            isNearEdge = true;
+            edgeMsg = '🐟 地板好凉，抱我上去～';
+        }
+        if (isNearEdge) {
+            lastEdgeTriggerTime = now;
+            showFloatingMessage(edgeMsg, 3000);
+            tempAction('talk', 600);
+        }
+    }
+
+    function startRandomWalk() {
+        if (walkInterval) clearInterval(walkInterval);
+        walkInterval = setInterval(() => {
+            if (isDragging) return;
+            if (Math.random() < 0.2) {
+                const direction = Math.random() < 0.5 ? 'left' : 'right';
+                currentAction = direction === 'left' ? 'walk_left' : 'walk_right';
+                refreshImageByAction();
+                const walkDuration = 800 + Math.random() * 700;
+                const step = direction === 'left' ? -2 : 2;
+                let steps = 0;
+                const maxSteps = walkDuration / 20;
+                const moveInterval = setInterval(() => {
+    if (isDragging) { clearInterval(moveInterval); return; }
+    let newX = posX + step;
+    const maxX = window.innerWidth - petImg.offsetWidth - screenPadding;
+    const minX = screenPadding;
+    if (newX >= minX && newX <= maxX) {
+        posX = newX;
+        container.style.left = posX + 'px';
+        steps++;
+        if (steps >= maxSteps) {
+            clearInterval(moveInterval);
+            currentAction = 'idle';
+            refreshImageByAction();
+        }
+    } else {
+        clearInterval(moveInterval);
+        currentAction = 'idle';
+        refreshImageByAction();
+    }
+}, 50);
+            } else {
+                if (currentForm === 'human' && currentAction === 'idle' && Math.random() < 0.3) {
+                    tempAction('blink', 200);
+                }
+            }
+        }, 10000);
+    }
+
+    // 拖拽逻辑
+    let dragStartX = 0, dragStartY = 0, startLeft = 0, startBottom = 0;
+    function onMouseDown(e) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        dragOccurred = false;
+        if (dragTimer) clearTimeout(dragTimer);
+        isDragging = true;
+        currentAction = 'drag';
+        refreshImageByAction();
+        const rect = container.getBoundingClientRect();
+        startLeft = rect.left;
+        startBottom = window.innerHeight - rect.bottom;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        container.style.cursor = 'grabbing';
+    }
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        let dx = e.clientX - dragStartX;
+        let dy = e.clientY - dragStartY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragOccurred = true;
+        let newLeft = startLeft + dx;
+        let newBottom = startBottom - dy;
+        const maxLeft = window.innerWidth - petImg.offsetWidth - screenPadding;
+        const minLeft = screenPadding;
+        const maxBottom = window.innerHeight - petImg.offsetHeight - screenPadding;
+        const minBottom = screenPadding;
+        newLeft = Math.min(maxLeft, Math.max(minLeft, newLeft));
+        newBottom = Math.min(maxBottom, Math.max(minBottom, newBottom));
+        posX = newLeft;
+        posY = newBottom;
+        container.style.left = posX + 'px';
+        container.style.bottom = posY + 'px';
+    }
+    function onMouseUp() {
+        isDragging = false;
+        currentAction = 'idle';
+        refreshImageByAction();
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        container.style.cursor = 'grab';
+        if (dragTimer) clearTimeout(dragTimer);
+        dragTimer = setTimeout(() => { dragOccurred = false; }, 300);
+        lastDragEndTime = Date.now();
+        checkEdgeAndSpeak();
+    }
+
+    // 事件绑定
+    let clickTimer = null;
+let lastClickTime = 0;
+function onContainerClick(e) {
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime;
+    lastClickTime = now;
+
+    // 如果两次点击间隔小于 300ms，视为双击
+    if (timeSinceLastClick < 300 && timeSinceLastClick > 0) {
+        if (clickTimer) clearTimeout(clickTimer);
+        openChatPanel();   // 双击打开聊天面板
+        return;
+    }
+
+    // 否则视为单击，延迟执行说话
+    if (clickTimer) clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {
+        speakDirectly();
+        clickTimer = null;
+    }, 200);
+}
+    function onContextMenu(e) {
+        e.preventDefault();
+        switchForm();
+        return false;
+    }
+    function setReminder() {
+        if (reminderTimeout) clearTimeout(reminderTimeout);
+        let seconds = parseInt(document.getElementById('reminderSeconds').value);
+        if (isNaN(seconds) || seconds <= 0) seconds = 60;
+        const msg = document.getElementById('reminderText').value || '小鲸鱼想你啦 🐟';
+        reminderTimeout = setTimeout(() => {
+            if (chatPanel && messagesContainer) {
+                conversationHistory.push({ role: 'assistant', content: `⏰ 提醒：${msg}`, timestamp: Date.now() });
+                refreshChatMessages();
+            } else {
+                showFloatingMessage(`⏰ ${msg}`, 4000);
+            }
+            if (Notification.permission === 'granted') new Notification('🐟 小鲸鱼提醒', { body: msg });
+            else if (Notification.permission !== 'denied') Notification.requestPermission();
+            reminderTimeout = null;
+        }, seconds * 1000);
+        showFloatingMessage(`✅ 提醒已设置：${seconds}秒后“${msg}”`, 2000);
+    }
+
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('click', onContainerClick);
+    container.addEventListener('contextmenu', onContextMenu);
+    document.getElementById('setReminderBtn').addEventListener('click', setReminder);
+    if (Notification.permission === 'default') Notification.requestPermission();
+
+    function setInitialPosition() {
+        container.style.position = 'fixed';
+        container.style.left = posX + 'px';
+        container.style.bottom = posY + 'px';
+        container.style.cursor = 'grab';
+    }
+    setInitialPosition();
+
+    window.addEventListener('resize', () => {
+        const maxX = window.innerWidth - petImg.offsetWidth - screenPadding;
+        const maxY = window.innerHeight - petImg.offsetHeight - screenPadding;
+        posX = Math.min(maxX, Math.max(screenPadding, posX));
+        posY = Math.min(maxY, Math.max(screenPadding, posY));
+        container.style.left = posX + 'px';
+        container.style.bottom = posY + 'px';
+        if (chatPanel) positionPanelNearPet(chatPanel);
+    });
+
+    startRandomWalk();
+    petImg.onload = () => refreshImageByAction();
+    refreshImageByAction();
+    if (!apiKey) showFloatingMessage('🔓 本地模式 | 可设置 API Key 获得智能回复', 4000);
+</script>
+<script>
+  const { ipcRenderer } = require('electron');
+
+  // 判断当前鼠标下的元素是否应该可交互
+  function isInteractiveElement(x, y) {
+    let el = document.elementsFromPoint(x, y)[0];
+    while (el) {
+      // 可交互的选择器
+      if (el.id === 'pet-container' ||
+          el.closest('#pet-container') ||
+          el.closest('.chat-panel') ||
+          el.closest('.settings-panel') ||
+          el.closest('.reminder-panel') ||
+          el.tagName === 'BUTTON' ||
+          el.tagName === 'INPUT' ||
+          el.classList?.contains('bubble')) {
+        return true;
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  let lastSend = 0;
+  let lastIgnore = true; // 记录上次状态，避免重复发送
+
+  document.addEventListener('mousemove', (e) => {
+    const now = Date.now();
+    if (now - lastSend > 200) {
+      lastSend = now;
+      const needInteractive = isInteractiveElement(e.clientX, e.clientY);
+      const ignore = !needInteractive; // 如果不需要交互，就穿透（ignore = true）
+      if (ignore !== lastIgnore) {
+        lastIgnore = ignore;
+        ipcRenderer.send('set-ignore-mouse', ignore);
+      }
+    }
+  });
+
+  // 鼠标移出窗口时恢复穿透（可选）
+  document.addEventListener('mouseleave', () => {
+    if (lastIgnore !== true) {
+      lastIgnore = true;
+      ipcRenderer.send('set-ignore-mouse', true);
+    }
+  });
+</script>
+</body>
+</html>
